@@ -9,7 +9,7 @@ function doGet(e) {
   const action = e.parameter.action;
   
   if (action === 'search') {
-    return searchRecords(e.parameter.partNo);
+    return searchRecords(e.parameter.epicNumber);
   }
   
   return createResponse({ error: "Invalid Action" }, 400);
@@ -30,7 +30,7 @@ function doPost(e) {
   return createResponse({ error: "Invalid POST Action" }, 400);
 }
 
-function searchRecords(partNo) {
+function searchRecords(epicNumber) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
@@ -41,14 +41,15 @@ function searchRecords(partNo) {
   const headers = data[0];
   const results = [];
 
-  const partNoIdx = headers.indexOf('Part No.');
-  if (partNoIdx === -1) {
-    return createResponse({ error: "Column 'Part No.' not found" }, 404);
+  const epicIdx = headers.indexOf('Epic Number');
+  if (epicIdx === -1) {
+    return createResponse({ error: "Column 'Epic Number' not found" }, 404);
   }
 
   for (let i = 1; i < data.length; i++) {
-    // Check if Part No matches (string comparison to be safe)
-    if (String(data[i][partNoIdx]) === String(partNo)) {
+    const sheetEpic = String(data[i][epicIdx]).trim().toUpperCase();
+    const searchEpic = String(epicNumber).trim().toUpperCase();
+    if (sheetEpic === searchEpic) {
       let obj = {};
       headers.forEach((header, index) => {
         obj[header] = data[i][index];
@@ -79,8 +80,11 @@ function updateRecord(updateData) {
   }
 
   let foundRowIndex = -1;
+  const updateEpic = String(updateData['Epic Number']).trim().toUpperCase();
+
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][epicIdx]) === String(updateData['Epic Number'])) {
+    const sheetEpic = String(data[i][epicIdx]).trim().toUpperCase();
+    if (sheetEpic === updateEpic) {
       foundRowIndex = i + 1; // 1-based index for sheet
       break;
     }

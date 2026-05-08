@@ -5,7 +5,7 @@
 
 /// <reference types="vite/client" />
 import { useState, useEffect, FormEvent } from 'react';
-import { Search, Save, CheckCircle, AlertCircle, Loader2, User, Phone, Fingerprint, Hash } from 'lucide-react';
+import { Search, Save, CheckCircle, AlertCircle, Loader2, User, Phone, Fingerprint, Hash, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Elector {
@@ -28,7 +28,7 @@ interface Elector {
 const SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || '';
 
 export default function App() {
-  const [partNo, setPartNo] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Elector[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -39,14 +39,15 @@ export default function App() {
   const [editBuffer, setEditBuffer] = useState<Record<string, { adhar: string; mobile: string }>>({});
 
   useEffect(() => {
-    if (!SCRIPT_URL || SCRIPT_URL.includes('example')) {
-      setIsConfigured(false);
-    }
+    // Check if SCRIPT_URL is actually set to something useful
+    const invalid = !SCRIPT_URL || SCRIPT_URL === '' || SCRIPT_URL.includes('example');
+    console.log('Detected GAS Script URL:', SCRIPT_URL);
+    setIsConfigured(!invalid);
   }, []);
 
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
-    if (!partNo.trim()) return;
+    if (!searchQuery.trim()) return;
 
     setLoading(true);
     setError(null);
@@ -54,7 +55,9 @@ export default function App() {
     setEditBuffer({});
 
     try {
-      const response = await fetch(`${SCRIPT_URL}?action=search&partNo=${encodeURIComponent(partNo)}`, {
+      // Append timestamp to avoid caching
+      const url = `${SCRIPT_URL}?action=search&epicNumber=${encodeURIComponent(searchQuery)}&_t=${Date.now()}`;
+      const response = await fetch(url, {
         method: 'GET',
         mode: 'cors',
       });
@@ -66,7 +69,7 @@ export default function App() {
       
       setResults(data);
       if (data.length === 0) {
-        setError('No records found for this Part Number.');
+        setError('No records found for this Epic Number.');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred while searching.');
@@ -194,9 +197,9 @@ export default function App() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
                 type="text"
-                placeholder="Search by Part No..."
-                value={partNo}
-                onChange={(e) => setPartNo(e.target.value)}
+                placeholder="Search by Epic Number..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
               />
             </div>
@@ -270,70 +273,86 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Readonly Info */}
-                    <div className="space-y-4">
-                       <div>
-                         <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">Elector Name</label>
-                         <p className="font-semibold text-slate-800 text-lg">{elector['Elector\'s Name']}</p>
-                         <p className="text-slate-500 font-hindi text-lg">{elector['Elector Name Hindi']}</p>
+                    <div className="space-y-6">
+                       <div className="bg-slate-50/50 p-4 rounded-xl border border-dashed border-slate-200">
+                         <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">Elector Identity</label>
+                         <p className="font-bold text-slate-900 text-xl tracking-tight leading-tight">{elector['Elector\'s Name']}</p>
+                         <p className="text-indigo-600 font-hindi text-xl mt-1">{elector['Elector Name Hindi']}</p>
+                         <div className="flex items-center gap-2 mt-3 text-xs font-medium text-slate-500">
+                           <span className="bg-white px-2 py-0.5 rounded border border-slate-100">{elector['Elector Gender']}</span>
+                           <span className="bg-white px-2 py-0.5 rounded border border-slate-100">Age: {elector['Age']}</span>
+                           <span className="bg-white px-2 py-0.5 rounded border border-slate-100">{elector['D.O.B']}</span>
+                         </div>
                        </div>
                        
-                       <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">Gender / Age</label>
-                            <p className="text-slate-700">{elector['Elector Gender']} / {elector['Age']}</p>
-                          </div>
-                          <div>
-                            <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">D.O.B</label>
-                            <p className="text-slate-700">{elector['D.O.B']}</p>
-                          </div>
-                       </div>
+                       <div className="space-y-4 px-1">
+                         <div className="flex items-start gap-3">
+                           <div className="mt-1 flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                             <User size={14} />
+                           </div>
+                           <div>
+                             <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-0.5">{elector['Relative type']}'s Relation</label>
+                             <p className="font-semibold text-slate-800">{elector['Relative Name']}</p>
+                             <p className="text-sm text-slate-500 font-hindi">{elector['Relative Name Hindi']}</p>
+                           </div>
+                         </div>
 
-                       <div>
-                         <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">{elector['Relative type']} Name</label>
-                         <p className="font-medium text-slate-700">{elector['Relative Name']}</p>
-                         <p className="text-slate-500">{elector['Relative Name Hindi']}</p>
+                         <div className="flex items-start gap-3">
+                           <div className="mt-1 flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                             <MapPin size={14} />
+                           </div>
+                           <div>
+                             <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-0.5">Location Details</label>
+                             <p className="text-sm font-medium text-slate-700">AC: {elector['AC No.']} | Part: {elector['Part No.']}</p>
+                           </div>
+                         </div>
                        </div>
                     </div>
 
                     {/* Editable Fields */}
-                    <div className="bg-slate-50 p-5 rounded-xl space-y-5 border border-slate-100">
-                      <div>
-                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block flex items-center space-x-1">
-                          <Fingerprint size={12} className="text-indigo-500" />
-                          <span>Adhar Number (12 Digits)</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={currentValues.adhar}
-                          onChange={(e) => updateBuffer(epic, 'adhar', e.target.value)}
-                          placeholder="0000 0000 0000"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-                        />
-                      </div>
+                    <div className="bg-indigo-50/30 p-6 rounded-2xl space-y-6 border border-indigo-100/50 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-indigo-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+                      
+                      <div className="relative z-10 space-y-5">
+                        <div>
+                          <label className="text-[11px] uppercase font-extrabold text-indigo-900/40 tracking-widest mb-2 block flex items-center space-x-2">
+                            <Fingerprint size={14} className="text-indigo-500" />
+                            <span>Aadhaar Verification</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={currentValues.adhar}
+                            onChange={(e) => updateBuffer(epic, 'adhar', e.target.value)}
+                            placeholder="12 Digit Number"
+                            className="w-full bg-white border-2 border-indigo-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono tracking-widest"
+                          />
+                        </div>
 
-                      <div>
-                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block flex items-center space-x-1">
-                          <Phone size={12} className="text-indigo-500" />
-                          <span>Mobile Number (10 Digits)</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={currentValues.mobile}
-                          onChange={(e) => updateBuffer(epic, 'mobile', e.target.value)}
-                          placeholder="9876543210"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-                        />
-                      </div>
+                        <div>
+                          <label className="text-[11px] uppercase font-extrabold text-indigo-900/40 tracking-widest mb-2 block flex items-center space-x-2">
+                            <Phone size={14} className="text-indigo-500" />
+                            <span>Contact Number</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={currentValues.mobile}
+                            onChange={(e) => updateBuffer(epic, 'mobile', e.target.value)}
+                            placeholder="10 Digit Number"
+                            className="w-full bg-white border-2 border-indigo-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono tracking-widest"
+                          />
+                        </div>
 
-                      <button
-                        onClick={() => handleUpdate(epic)}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center space-x-2"
-                      >
-                        <Save size={18} />
-                        <span>Update Record</span>
-                      </button>
+                        <button
+                          onClick={() => handleUpdate(epic)}
+                          disabled={loading}
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-bold py-4 rounded-xl transition-all shadow-xl shadow-indigo-100 flex items-center justify-center space-x-3 disabled:opacity-50"
+                        >
+                          <Save size={20} />
+                          <span>Save Changes</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -345,7 +364,7 @@ export default function App() {
         {results.length === 0 && !loading && !error && (
           <div className="flex flex-col items-center justify-center py-24 text-slate-300">
             <Search size={84} strokeWidth={1} className="mb-4 text-indigo-100" />
-            <p className="text-xl font-medium text-slate-400">Enter a Part Number to start searching</p>
+            <p className="text-xl font-medium text-slate-400">Enter an Epic Number to start searching</p>
             <p className="text-sm mt-1">Found in your Google Sheet data source</p>
           </div>
         )}
