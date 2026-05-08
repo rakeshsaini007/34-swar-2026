@@ -1,0 +1,6 @@
+{
+  "name": "Elector verification portal",
+  "description": "A search and update tool for elector records connected to Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
